@@ -90,7 +90,7 @@
 /* ===== ডেটা লেয়ার: Firebase Realtime Database =====
    members/m{id} = সদস্য, meta = ক্যাশ হিসাব, users/{uid} = ইউজার, pw/{uid} = পাসওয়ার্ড (শুধু অ্যাডমিন দেখতে পারে) */
 let S={members:[],meta:{bank:0,hC:0,hN:0,hE:0,extra:0},users:{}},members=S.members,meta=S.meta,role,vid,cur,first,ME,FB,cache={},tm=0,busy=0,unsubs=[],lastM,lastMeta,setupMode=0;
-const D0=()=>({bank:0,hC:0,hN:0,hE:0,extra:0}),E=(i,v)=>`${i}${v?'.v'+v:''}@eidapp.com`,r_=p=>p?FB.ref(FB.db,p):FB.ref(FB.db),arr=x=>Array.isArray(x)?x:Object.values(x||{});
+const D0=()=>({bank:0,hC:0,hN:0,hE:0,extra:0,bt:[]}),E=(i,v)=>`${i}${v?'.v'+v:''}@eidapp.com`,r_=p=>p?FB.ref(FB.db,p):FB.ref(FB.db),arr=x=>Array.isArray(x)?x:Object.values(x||{});
 const cj=o=>JSON.stringify(o,(k,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(x=>[x,v[x]])):v);
 function norm(m){const sl=arr(m.slots).map(z=>{const v=arr(z.v);while(v.length<24)v.push(0);return{v}});return{...m,slots:sl,transactions:arr(m.transactions),advance:m.advance||0,hawlat:m.hawlat||0,payment:m.payment||0,extraDeposit:m.extraDeposit||0,login:m.login||''}}
 const sv=()=>{clearTimeout(tm);tm=setTimeout(flush,400)},save=()=>{sv();draw()};
@@ -104,7 +104,7 @@ function applyRemote(){if(busy||tm)return;let ch=false;
  if(lastM!==undefined){const v=lastM||{},seen={};Object.keys(v).forEach(k=>{const o=norm(v[k]),j=cj(o),ck='members/'+k;seen[ck]=1;if(cache[ck]!==j){cache[ck]=j;const i=S.members.findIndex(m=>'m'+m.id===k);if(i>=0)S.members[i]=o;else S.members.push(o);ch=true}});
   Object.keys(cache).forEach(ck=>{if(ck.startsWith('members/')&&!seen[ck]){delete cache[ck];S.members=members=S.members.filter(m=>'members/m'+m.id!==ck);ch=true}});
   if(ch){S.members.sort((a,b)=>a.id-b.id);members=S.members}}
- if(lastMeta!==undefined){const o={...D0(),...(lastMeta||{})},j=cj(o);if(cache.meta!==j){cache.meta=j;S.meta=meta=o;ch=true}}
+ if(lastMeta!==undefined){const o={...D0(),...(lastMeta||{})};o.bt=arr(o.bt);const j=cj(o);if(cache.meta!==j){cache.meta=j;S.meta=meta=o;ch=true}}
  if(ch)draw()}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&tm)flush()});
 async function loadUsers(){const[a,b]=await Promise.all([FB.get(r_('users')),FB.get(r_('pw'))]),U=a.val()||{},P=b.val()||{};S.users={};Object.keys(U).forEach(i=>{const u=U[i];S.users[u.username]={uid:i,role:u.role,name:u.name,memberId:u.memberId,pw:P[i]}})}
@@ -197,7 +197,7 @@ function draw(){
  const q=val('q').trim();
  $('mb').innerHTML=members.filter(m=>q?m.phone.includes(q):m.status!=='inactive').map(m=>`<tr><td class="font-semibold">${m.id}<td class="font-semibold">${m.name}<td>${m.phone}<td class="font-bold text-blue-600">${m.count}টি<td>৳ ${tot(m)}<td class="text-red-600">৳ ${m.hawlat}<td class="font-bold text-purple-600 bg-purple-50">৳ ${m.extraDeposit}<td class="font-bold bg-slate-50">৳ ${bal(m)}<td class="np"><button class="px-2 py-1 rounded text-xs font-bold ${m.status==='inactive'?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}" onclick="stat(${m.id})">${m.status==='inactive'?'Inactive':'Active'}</button><td class="so">`).join('');
  const mo=members.map(m=>`<option value="${m.id}">${m.name} (${m.phone})</option>`).join('');
- ['led-m','hawlat-m','payment-m','receive-m','s-m'].forEach(id=>{const s=$(id),v=s.value;s.innerHTML=`<option value="">${BL[id]||'সদস্য সিলেক্ট করুন'}</option>`+(id==='payment-m'?'<option value="bank">🏦 ব্যাংক পেমেন্ট</option>':'')+mo;s.value=v});
+ ['led-m','hawlat-m','payment-m','receive-m','s-m'].forEach(id=>{const s=$(id),v=s.value;s.innerHTML=`<option value="">${BL[id]||'সদস্য সিলেক্ট করুন'}</option>`+(id==='payment-m'?'<option value="bank">🏦 ব্যাংক পেমেন্ট (জমা)</option><option value="bank_wd">🏦 ব্যাংক থেকে উত্তোলন</option>':id==='led-m'?'<option value="bank">🏦 ব্যাংক স্টেটমেন্ট</option>':'')+mo;s.value=v});
  if(role==='admin')$('ut').innerHTML=Object.keys(S.users).map(k=>{const u=S.users[k];return `<tr><td>${u.name||k}<td>${k}<td>${RL[u.role]||u.role}<td><button onclick="editU('${k}')" class="text-blue-600 mr-3"><i class="fa-solid fa-edit"></i> এডিট</button><button onclick="delU('${k}')" class="text-red-600"><i class="fa-solid fa-trash"></i> ডিলিট</button>`}).join('');
  if(document.activeElement.classList.contains('ci'))cols();else sheet();
  led();txs()}
@@ -216,7 +216,19 @@ document.addEventListener('keydown',e=>{const c=e.target;if(!c.classList||!c.cla
  else if(k==='Tab'||k==='ArrowRight'||k==='ArrowLeft'){e.preventDefault();mv(L[x+(k==='ArrowLeft'||(k==='Tab'&&e.shiftKey)?-1:1)])}});
 
 // ---- সদস্য খতিয়ান ----
-function led(){const m=members.find(x=>x.id==val('led-m'));$('led').innerHTML=m?`<div class="pa">${ledger(m,val('l1'),val('l2'))}</div>`:'<div class="bg-white p-6 rounded-xl text-center text-gray-400">অনুগ্রহ করে উপর থেকে সদস্য নির্বাচন করুন।</div>'}
+function led(){if(val('led-m')==='bank'){$('led').innerHTML=`<div class="pa">${bankStmt(val('l1'),val('l2'))}</div>`;return}const m=members.find(x=>x.id==val('led-m'));$('led').innerHTML=m?`<div class="pa">${ledger(m,val('l1'),val('l2'))}</div>`:'<div class="bg-white p-6 rounded-xl text-center text-gray-400">অনুগ্রহ করে উপর থেকে সদস্য নির্বাচন করুন।</div>'}
+function bankStmt(a,b){const all=[];arr(meta.bt).forEach(t=>all.push({id:t.id,d:t.date,desc:t.desc,dep:t.type==='wd'?0:t.amount,wd:t.type==='wd'?t.amount:0,bk:1}));
+ members.forEach(m=>m.transactions.forEach(t=>{if(t.method!=='net_cash')return;if(t.type==='hawlat'||t.type==='payment')all.push({id:t.id,d:t.date,desc:m.name+': '+t.desc,dep:0,wd:t.debit});else if(t.type==='hawlat_return')all.push({id:t.id,d:t.date,desc:m.name+': '+t.desc,dep:t.credit,wd:0})}));
+ all.sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:x.id-y.id);const card=meta.bank-meta.hN,leg=card-sum(all.map(x=>x.dep-x.wd));
+ let run=leg,open=leg,tb=leg,pd=0,pw=0,rows='';
+ all.forEach(x=>{if(!b||x.d<=b)tb+=x.dep-x.wd;if(a&&x.d<a){open+=x.dep-x.wd;run+=x.dep-x.wd;return}if(b&&x.d>b)return;run+=x.dep-x.wd;pd+=x.dep;pw+=x.wd;
+  rows+=`<tr><td class="text-xs font-semibold bg-gray-50">${x.d}<td class="font-medium">${x.desc}<td class="text-emerald-600 font-bold">৳ ${x.dep}<td class="text-red-600 font-bold">৳ ${x.wd}<td class="font-bold ${run<0?'text-red-700':''}">৳ ${run}<td class="np">${x.bk?`<button onclick="delBank(${x.id})" class="text-red-600"><i class="fa-solid fa-trash"></i></button>`:''}`});
+ if(open!==0)rows=`<tr class="bg-amber-50"><td class="text-xs font-semibold">পূর্বের জের<td class="font-medium">${a?bnd(a)+' এর পূর্বের ব্যালেন্স':'পূর্বের ব্যালেন্স (বিস্তারিত বিবরণ সংরক্ষিত নেই)'}<td>—<td>—<td class="font-bold">৳ ${open}<td class="np">`+rows;
+ const F=a||b,tt=b?tb:card;
+ return `<div class="bg-white rounded-xl shadow-sm p-6 space-y-4"><div class="text-center border-b pb-4"><h2 class="text-xl font-bold text-slate-800">ব্যাংক স্টেটমেন্ট</h2><p class="text-xs text-gray-500 mt-1">হিসাব প্রস্তুতের তারিখ: ${bnd(new Date())}</p>${F?`<p class="ptitle text-xs font-semibold text-emerald-600 mt-1">স্টেটমেন্ট সময়কাল: ${a?bnd(a):'শুরু থেকে'} হতে ${b?bnd(b):'আজ পর্যন্ত'}</p>`:''}</div>
+<div class="overflow-x-auto"><table><tr class="bg-slate-800 text-white"><th>তারিখ<th>বিবরণ<th class="bg-emerald-900">ব্যাংক পেমেন্ট (+)<th class="bg-red-900">উত্তোলন (-)<th>বর্তমান ব্যালেন্স<th class="np">অ্যাকশন${rows||'<tr><td colspan="6" class="text-gray-400">নির্বাচিত সময়ের মধ্যে কোনো ব্যাংক লেনদেন পাওয়া যায়নি।'}</table></div>
+<div class="grid grid-cols-3 gap-4 pt-4 border-t text-center"><div class="p-2 bg-emerald-50 rounded border"><p class="text-xs text-emerald-600">নির্বাচিত সময়ে জমা</p><p class="font-bold text-slate-800">৳ ${pd}</p></div><div class="p-2 bg-red-50 rounded border"><p class="text-xs text-red-600">নির্বাচিত সময়ে উত্তোলন</p><p class="font-bold text-slate-800">৳ ${pw}</p></div><div class="p-2 bg-blue-50 rounded border"><p class="text-xs text-blue-600">মোট নিট ক্যাশ${b?' ('+bnd(b)+' পর্যন্ত)':''}</p><p class="font-bold text-slate-800">৳ ${tt}</p></div></div></div>`}
+function delBank(id){const t=arr(meta.bt).find(x=>x.id===id);if(!t||!confirm('এই ব্যাংক লেনদেনটি ডিলিট করবেন? নিট ক্যাশের হিসাব সমন্বয় হবে।'))return;if(t.type==='wd')meta.bank+=t.amount;else meta.bank-=t.amount;meta.bt=arr(meta.bt).filter(x=>x.id!==id);save();alert('ব্যাংক লেনদেন ডিলিট করা হয়েছে।')}
 const cmp=(x,y)=>x.d<y.d?-1:x.d>y.d?1:x.id-y.id;
 function asof(m,b){let sv_=0,E=0,H=0,P=0;m.transactions.map(t=>({...t,d:t.date})).filter(t=>t.d<=b).sort(cmp).forEach(t=>{if(t.type==='savings')sv_+=t.credit;else if(t.type==='extra_deposit')E+=t.credit;else if(t.type==='hawlat')H+=t.debit;else if(t.type==='hawlat_return')H=Math.max(0,H-t.credit);else if(t.type==='payment'){if(t.fx)E-=t.debit;else P+=t.debit}});
  const A=b>='2026-01-01'?(m.advance||0):0;return[sv_,E,H,sv_+A+E-H-P]}
@@ -260,7 +272,8 @@ function issueHawlat(e){e.preventDefault();const f=e.target,m=mem('hawlat-m'),a=
  f.reset();save();alert(`${m.name}-কে ${MN[mt]} থেকে ৳${a} অগ্রিম প্রদান করা হয়েছে।`)}
 function processPayment(e){e.preventDefault();const f=e.target,mv=val('payment-m'),a=+val('payment-a')||0,mt=val('payment-me');
  if(!mt)return alert('অনুগ্রহ করে পেমেন্ট স্থান সিলেক্ট করুন।');if(!mv||!a)return alert('সদস্য ও পরিমাণ দিন');
- if(mv==='bank'){meta.bank+=a;f.reset();save();return alert(`৳${a} ব্যাংক পেমেন্ট সফল হয়েছে।`)}
+ if(mv==='bank_wd'){meta.bank-=a;meta.bt=arr(meta.bt);meta.bt.push({id:Date.now(),date:val('payment-d')||today(),amount:a,desc:val('payment-ds').trim()||'ব্যাংক থেকে উত্তোলন',type:'wd'});f.reset();save();return alert(`৳${a} ব্যাংক থেকে উত্তোলন সফল হয়েছে এবং নিট ক্যাশ থেকে বাদ গেছে।`)}
+ if(mv==='bank'){meta.bank+=a;meta.bt=arr(meta.bt);meta.bt.push({id:Date.now(),date:val('payment-d')||today(),amount:a,desc:val('payment-ds').trim()||'ব্যাংক পেমেন্ট',type:'dep'});f.reset();save();return alert(`৳${a} ব্যাংক পেমেন্ট সফল হয়েছে।`)}
  apply(mem('payment-m'),'payment',a,mt,val('payment-d')||today(),`${val('payment-ds').trim()||'সদস্য পেমেন্ট/উত্তোলন'} [উৎস: ${MN[mt]}]`);
  f.reset();save();alert('পেমেন্ট সফলভাবে সম্পন্ন হয়েছে এবং ব্যালেন্স আপডেট করা হয়েছে।')}
 function processReceive(e){e.preventDefault();const f=e.target,m=mem('receive-m'),a=+val('receive-a')||0,mt=val('receive-me'),t=val('receive-t');
@@ -292,7 +305,7 @@ async function delM(){const m=mem('s-m');if(!m||!confirm(`আপনি কি �
  S.members=members=members.filter(x=>x.id!==m.id);$('s-f').classList.add('hidden');$('s-m').value='';save();alert('সদস্যকে সফলভাবে ডিলিট করা হয়েছে।')}
 function newYear(){if(!confirm('আপনি কি নিশ্চিত যে নতুন বছরের জন্য শিট পরিবর্তন করতে চান? এটি করলে সকল সদস্যের নাম ঠিক থাকবে কিন্তু জমার কিস্তিগুলো সম্পূর্ণ ০ (খালি) হয়ে যাবে!'))return;
  members.forEach(m=>{m.slots=m.slots.map(()=>({v:Array(24).fill(0)}));Object.assign(m,{hawlat:0,payment:0,extraDeposit:0,transactions:[]})});
- Object.assign(meta,{bank:0,hC:0,hN:0,hE:0,extra:0});save();alert('সফলভাবে পুরাতন কিস্তিগুলো পরিষ্কার করে নতুন বছরের খালি শিট প্রস্তুত করা হয়েছে!')}
+ Object.assign(meta,{bank:0,hC:0,hN:0,hE:0,extra:0,bt:[]});save();alert('সফলভাবে পুরাতন কিস্তিগুলো পরিষ্কার করে নতুন বছরের খালি শিট প্রস্তুত করা হয়েছে!')}
 async function resetData(){if(!confirm('আপনি কি নিশ্চিত যে সমস্ত মেম্বার এবং জমার খতিয়ান মুছে ফেলতে চান?'))return;
  for(const k of Object.keys(S.users)){const u=S.users[k];if(u.role==='viewer'){await dropU(u);delete S.users[k]}}
  S.members=members=[];S.meta=meta=D0();save()}
